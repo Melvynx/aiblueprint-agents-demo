@@ -111,7 +111,7 @@ class FileOperations {
           await Bun.write(filename, decodedContent);
           return `Successfully ${fileExists ? "updated" : "created"} ${filename}`;
         },
-        (result) => `${fileExists ? "📝 Updated" : "📄 Created"} ${decodedContent.length} characters\n   ${decodedContent.slice(0, 200)}${decodedContent.length > 200 ? "..." : ""}`,
+        (_result) => `${fileExists ? "📝 Updated" : "📄 Created"} ${decodedContent.length} characters\n   ${decodedContent.slice(0, 200)}${decodedContent.length > 200 ? "..." : ""}`,
         2200 // Longer for file writing
       );
 

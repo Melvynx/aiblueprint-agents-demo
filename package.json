@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start": "bun run index.ts",
-    "dev": "bun run index.ts"
+    "dev": "bun run index.ts",
+    "modern": "bun run simple-modern.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -18,6 +19,7 @@
     "@types/react": "^19.1.10",
     "ai": "^5.0.15",
     "ink": "^6.2.0",
+    "ink-text-input": "^6.0.0",
     "react": "^19.1.1"
   }
 }
