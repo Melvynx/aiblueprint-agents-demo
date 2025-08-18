@@ -41,9 +41,9 @@ class FileOperations {
     return content
       .replace(/&quot;/g, '"')
       .replace(/\\"/g, '"')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&');
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&");
   }
 
   private async withToolExecution<T>(
@@ -54,29 +54,29 @@ class FileOperations {
     delayMs: number = 2000
   ): Promise<T> {
     const spinner = clack.spinner();
-    
+
     try {
       // Start with tool call info
       clack.log.step(`🔧 ${toolName.toUpperCase()} ${params}`);
-      
+
       spinner.start(`Processing...`);
-      
+
       // Longer delay to show work being done
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-      
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+
       const result = await operation();
-      
+
       spinner.stop(`✅ Completed`);
-      
+
       // Show result preview in a nice box
       clack.log.info(previewResult(result));
-      clack.log.message(''); // Add spacing after each tool
-      
+      clack.log.message(""); // Add spacing after each tool
+
       return result;
     } catch (error) {
       spinner.stop(`❌ Failed`);
       clack.log.error(`Error: ${(error as Error).message}`);
-      clack.log.message(''); // Add spacing after error
+      clack.log.message(""); // Add spacing after error
       throw error;
     }
   }
@@ -90,12 +90,17 @@ class FileOperations {
           const file = Bun.file(filename);
           return await file.text();
         },
-        (content) => `📄 ${content.length} characters\n   ${content.slice(0, 200)}${content.length > 200 ? "..." : ""}`
+        (content) =>
+          `📄 ${content.length} characters\n   ${content.slice(0, 200)}${
+            content.length > 200 ? "..." : ""
+          }`
       );
 
       return content;
     } catch (error) {
-      return `Error: Could not read file ${filename}: ${(error as Error).message}`;
+      return `Error: Could not read file ${filename}: ${
+        (error as Error).message
+      }`;
     }
   }
 
@@ -103,21 +108,30 @@ class FileOperations {
     try {
       const decodedContent = this.decodeHtmlEntities(content);
       const fileExists = await Bun.file(filename).exists();
-      
+
       const result = await this.withToolExecution(
         "writefile",
         `file="${filename}" content="..."`,
         async () => {
           await Bun.write(filename, decodedContent);
-          return `Successfully ${fileExists ? "updated" : "created"} ${filename}`;
+          return `Successfully ${
+            fileExists ? "updated" : "created"
+          } ${filename}`;
         },
-        (_result) => `${fileExists ? "📝 Updated" : "📄 Created"} ${decodedContent.length} characters\n   ${decodedContent.slice(0, 200)}${decodedContent.length > 200 ? "..." : ""}`,
+        (_result) =>
+          `${fileExists ? "📝 Updated" : "📄 Created"} ${
+            decodedContent.length
+          } characters\n   ${decodedContent.slice(0, 200)}${
+            decodedContent.length > 200 ? "..." : ""
+          }`,
         2200 // Longer for file writing
       );
 
       return result;
     } catch (error) {
-      return `Error: Could not write to file ${filename}: ${(error as Error).message}`;
+      return `Error: Could not write to file ${filename}: ${
+        (error as Error).message
+      }`;
     }
   }
 
@@ -131,7 +145,8 @@ class FileOperations {
           const dirs = await Array.fromAsync(new Bun.Glob("*/").scan("."));
           return [...dirs, ...files].sort();
         },
-        (entries) => `📂 ${entries.length} items found\n   ${entries.join(" ")}`,
+        (entries) =>
+          `📂 ${entries.length} items found\n   ${entries.join(" ")}`,
         1800 // Medium timing for directory scan
       );
 
@@ -154,16 +169,21 @@ class FileOperations {
 
           const output = await new Response(proc.stdout).text();
           const error = await new Response(proc.stderr).text();
-          
+
           await proc.exited;
 
           if (proc.exitCode === 0) {
             return output || "Command completed successfully";
           } else {
-            throw new Error(`Command failed with exit code ${proc.exitCode}: ${error}`);
+            throw new Error(
+              `Command failed with exit code ${proc.exitCode}: ${error}`
+            );
           }
         },
-        (output) => `⚡ Exit code: 0\n   ${output.slice(0, 300)}${output.length > 300 ? "..." : ""}`,
+        (output) =>
+          `⚡ Exit code: 0\n   ${output.slice(0, 300)}${
+            output.length > 300 ? "..." : ""
+          }`,
         2500 // Longest timing for bash commands
       );
 
@@ -180,7 +200,7 @@ class FileOperations {
 
 class ToolRegistry {
   private fileOperations = new FileOperations();
-  
+
   readonly tools: Record<string, ToolDefinition> = {
     readfile: {
       name: "readfile",
@@ -190,43 +210,44 @@ class ToolRegistry {
           name: "file",
           description: "Path to the file to read",
           required: true,
-          example: "hello.js"
-        }
+          example: "hello.js",
+        },
       ],
       xmlFormat: '<readfile file="filename.txt" />',
       regex: /<readfile\s+file="([^"]+)"\s*\/>/g,
-      handler: async (params) => this.fileOperations.readFile(params.file)
+      handler: async (params) => this.fileOperations.readFile(params.file),
     },
 
     writefile: {
-      name: "writefile", 
+      name: "writefile",
       description: "Create a new file or overwrite existing file with content",
       parameters: [
         {
           name: "file",
           description: "Path to the file to create/edit",
           required: true,
-          example: "hello.js"
+          example: "hello.js",
         },
         {
           name: "content",
           description: "Content to write to the file",
           required: true,
-          example: "console.log('Hello World');"
-        }
+          example: "console.log('Hello World');",
+        },
       ],
       xmlFormat: '<writefile file="filename.txt" content="new content here" />',
       regex: /<writefile\s+file="([^"]+)"\s+content="([\s\S]*?)"\s*\/>/g,
-      handler: async (params) => this.fileOperations.writeFile(params.file, params.content)
+      handler: async (params) =>
+        this.fileOperations.writeFile(params.file, params.content),
     },
 
     list: {
       name: "list",
       description: "List all files and directories in the current directory",
       parameters: [],
-      xmlFormat: '<list />',
+      xmlFormat: "<list />",
       regex: /<list\s*\/>/g,
-      handler: async () => this.fileOperations.listFiles()
+      handler: async () => this.fileOperations.listFiles(),
     },
 
     bash: {
@@ -237,19 +258,20 @@ class ToolRegistry {
           name: "command",
           description: "The bash command to execute",
           required: true,
-          example: "ls -la"
-        }
+          example: "ls -la",
+        },
       ],
       xmlFormat: '<bash command="ls -la" />',
       regex: /<bash\s+command="([^"]+)"\s*\/>/g,
-      handler: async (params) => this.fileOperations.runBashCommand(params.command)
-    }
+      handler: async (params) =>
+        this.fileOperations.runBashCommand(params.command),
+    },
   };
 
   generateSystemPrompt(): string {
     const toolDescriptions = Object.values(this.tools)
-      .map(tool => `${tool.xmlFormat} - ${tool.description}`)
-      .join('\n');
+      .map((tool) => `${tool.xmlFormat} - ${tool.description}`)
+      .join("\n");
 
     return `You are an AI assistant with access to file operations. You can use the following tools:
 
@@ -316,28 +338,30 @@ class ToolParser {
 
   parseTools(text: string): ParsedTool[] {
     const parsedTools: ParsedTool[] = [];
-    
-    for (const [toolName, toolDefinition] of Object.entries(this.toolRegistry.tools)) {
-      const regex = new RegExp(toolDefinition.regex.source, 'g');
+
+    for (const [toolName, toolDefinition] of Object.entries(
+      this.toolRegistry.tools
+    )) {
+      const regex = new RegExp(toolDefinition.regex.source, "g");
       let match: RegExpExecArray | null;
-      
+
       while ((match = regex.exec(text)) !== null) {
         const parameters: Record<string, string> = {};
-        
+
         // Map regex groups to parameter names
         toolDefinition.parameters.forEach((param, index) => {
           if (match && match[index + 1] !== undefined) {
             parameters[param.name] = match[index + 1];
           }
         });
-        
+
         parsedTools.push({
           name: toolName,
-          parameters
+          parameters,
         });
       }
     }
-    
+
     return parsedTools;
   }
 }
@@ -356,7 +380,7 @@ class AgentDemo {
     if (!toolDefinition) {
       return `Unknown tool: ${parsedTool.name}`;
     }
-    
+
     return await toolDefinition.handler(parsedTool.parameters);
   }
 
@@ -364,10 +388,10 @@ class AgentDemo {
     // Initialize conversation if this is the first message
     if (this.conversationHistory.length === 0) {
       this.conversationHistory = [
-        { role: "system", content: this.toolRegistry.generateSystemPrompt() }
+        { role: "system", content: this.toolRegistry.generateSystemPrompt() },
       ];
     }
-    
+
     // Add user message to conversation history (only if not empty)
     if (userMessage.trim()) {
       this.conversationHistory.push({ role: "user", content: userMessage });
@@ -405,7 +429,10 @@ class AgentDemo {
         const toolResultsMessage = toolResults.join("\n");
         clack.log.step(`🔄 Sending tool results back to AI...`);
 
-        this.conversationHistory.push({ role: "user", content: toolResultsMessage });
+        this.conversationHistory.push({
+          role: "user",
+          content: toolResultsMessage,
+        });
 
         // Recursively continue the conversation
         await this.processMessage("");
@@ -422,7 +449,9 @@ class AgentDemo {
     clack.log.info(
       `This demonstrates how AI agents work with tools without using agent frameworks.`
     );
-    clack.log.info(`Available tools: ${this.toolRegistry.getToolNames().join(', ')}`);
+    clack.log.info(
+      `Available tools: ${this.toolRegistry.getToolNames().join(", ")}`
+    );
     clack.log.info(`Type 'exit' to quit.`);
 
     while (true) {
@@ -446,20 +475,7 @@ class AgentDemo {
 // INITIALIZATION - Setup and start the application
 // =============================================================================
 
-async function createSampleFile(): Promise<void> {
-  try {
-    await Bun.write(
-      "input.txt",
-      "This is a sample file for testing.\nYou can read and edit this file using the agent tools."
-    );
-    clack.log.success("📁 Created sample file: input.txt");
-  } catch (error) {
-    clack.log.warn("Sample file creation failed, but that's okay.");
-  }
-}
-
 async function main() {
-  await createSampleFile();
   const demo = new AgentDemo();
   await demo.start();
 }
