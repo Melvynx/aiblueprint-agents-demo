@@ -1,2 +1,0 @@
-This is a sample file for testing.
-You can read and edit this file using the AI SDK agent tools.
