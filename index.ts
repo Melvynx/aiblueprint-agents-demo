@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import { generateText, ModelMessage } from "ai";
 import TurndownService from "turndown";
 
 const systemPrompt = `You are a Coding Assistant named "MelvynCode" that SHOULD use the following tools when needed : 
@@ -118,7 +118,7 @@ In case you use a tools, you should ONLY return the tools usage.
 <assistant>ReadFile(app.js)</assistant>
 </good-example>`;
 
-const messages: any[] = [
+const messages: Array<ModelMessage> = [
   {
     role: "system",
     content: systemPrompt,
@@ -266,7 +266,7 @@ function grep(pattern: string, directory: string = ".") {
 
 function glob(pattern: string, directory: string = ".") {
   try {
-    const command = `cd ${directory} && find . -name "${pattern}" -type f 2>/dev/null | sed 's|^\./||' | sort || echo "No files found matching pattern: ${pattern}"`;
+    const command = `cd ${directory} && find . -name "${pattern}" -type f 2>/dev/null | sed 's|^./||' | sort || echo "No files found matching pattern: ${pattern}"`;
     const result = Bun.spawnSync({ cmd: ["bash", "-c", command] })
       .stdout.toString()
       .trim();
@@ -296,7 +296,7 @@ function ls(directory: string = ".", showGitIgnore: string = "0") {
     if (showGitIgnored) {
       command = `find "${directory}" -maxdepth 2 | sort`;
     } else {
-      command = `cd "${directory}" && (git ls-files --cached --others --exclude-standard; find . -maxdepth 1 -type d ! -name '.' ! -name '.git' ! -name 'node_modules' | sed 's|^\./||') | sort | uniq`;
+      command = `cd "${directory}" && (git ls-files --cached --others --exclude-standard; find . -maxdepth 1 -type d ! -name '.' ! -name '.git' ! -name 'node_modules' | sed 's|^./||') | sort | uniq`;
     }
 
     const result = Bun.spawnSync({ cmd: ["bash", "-c", command] })
@@ -399,7 +399,7 @@ async function webfetch(url: string) {
   }
 }
 
-async function executeTool(tool: any) {
+async function executeTool(tool: ToolType) {
   if (tool.name === "readfile") {
     return await readFile(tool.params.file);
   }
@@ -439,8 +439,10 @@ async function executeTool(tool: any) {
   };
 }
 
+type ToolType = { name: string; params: Record<string, string> };
+
 function parseTools(text: string) {
-  const tools: any[] = [];
+  const tools: { name: string; params: Record<string, string> }[] = [];
 
   const readMatches = text.matchAll(/<readfile file="([^"]+)"\s*\/>/g);
 

@@ -8,9 +8,15 @@
     "modern": "bun run simple-modern.ts"
   },
   "devDependencies": {
+    "@eslint/js": "^9.34.0",
     "@types/bun": "latest",
+    "@types/eslint": "^9.6.1",
     "@types/marked": "^6.0.0",
-    "@types/turndown": "^5.0.5"
+    "@types/turndown": "^5.0.5",
+    "eslint": "^9.34.0",
+    "globals": "^16.3.0",
+    "jiti": "^2.5.1",
+    "typescript-eslint": "^8.40.0"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
