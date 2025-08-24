@@ -28,7 +28,7 @@ const DEBUG = process.argv.includes("--debug");
 
 function log(message: string, ...args: unknown[]) {
   if (DEBUG) {
-    console.error(message, ...args);
+    console.log(message, ...args);
   }
 }
 
@@ -132,14 +132,16 @@ async function main() {
   let errorMessage = "";
 
   if (tsErrors || eslintErrors) {
-    errorMessage = `Errors detected in ${filePath.split("/").pop()}:\\n`;
+    errorMessage = `Fix NOW the following errors detected in ${filePath
+      .split("/")
+      .pop()}:\\n`;
 
     if (tsErrors) {
-      errorMessage += `\\nTypeScript errors:\\n${tsErrors}\\n`;
+      errorMessage += `\\n TypeScript errors:\\n${tsErrors}\\n`;
     }
 
     if (eslintErrors) {
-      errorMessage += `\\nESLint errors:\\n${eslintErrors}\\n`;
+      errorMessage += `\\n ESLint errors:\\n${eslintErrors}\\n`;
     }
   }
 
@@ -152,9 +154,9 @@ async function main() {
       },
     };
 
-    console.log(JSON.stringify(output, null, 2));
+    log(JSON.stringify(output, null, 2));
   } else {
-    console.log(`No errors detected in ${filePath.split("/").pop()}`);
+    log(`No errors detected in ${filePath.split("/").pop()}`);
   }
 }
 
