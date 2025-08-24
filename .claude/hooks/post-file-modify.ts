@@ -154,9 +154,9 @@ async function main() {
       },
     };
 
-    log(JSON.stringify(output, null, 2));
+    console.log(JSON.stringify(output, null, 2));
   } else {
-    log(`No errors detected in ${filePath.split("/").pop()}`);
+    console.log(`No errors detected in ${filePath.split("/").pop()}`);
   }
 }
 
