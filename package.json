@@ -12,7 +12,6 @@
     "@types/bun": "latest",
     "@types/eslint": "^9.6.1",
     "@types/marked": "^6.0.0",
-    "@types/turndown": "^5.0.5",
     "eslint": "^9.34.0",
     "globals": "^16.3.0",
     "jiti": "^2.5.1",
@@ -30,7 +29,6 @@
     "ink": "^6.2.0",
     "ink-text-input": "^6.0.0",
     "marked": "^16.2.0",
-    "react": "^19.1.1",
-    "turndown": "^7.2.1"
+    "react": "^19.1.1"
   }
 }

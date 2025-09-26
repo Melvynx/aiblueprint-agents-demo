@@ -2,53 +2,75 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Available Commands
+## Project Overview
 
-- `bun install` - Install dependencies
-- `bun run start` or `bun run dev` - Run the main agent demo (index.ts)
-- `bun run modern` - Run the enhanced modern version (simple-modern.ts)
-- `bun run tsc` - Verify TypeScript errors
-- `bun run index.ts` - Direct execution of main agent
+This is a TypeScript-based AI coding assistant called "MelvynCode" that provides an interactive CLI interface with tool-calling capabilities. The agent uses OpenAI's GPT-5 model through the AI SDK and runs on Bun runtime.
 
-## Project Architecture
+## Architecture
 
-This is an AI agent demonstration project that showcases different approaches to building conversational AI tools with file system access and command execution capabilities.
+The project is structured as a single-file agent (`index.ts`) that implements a conversational loop with the following key components:
 
-### Core Components
+- **System Prompt**: Defines the agent's identity and available tools
+- **Tool System**: Custom XML-based tool parsing and execution
+- **Message Management**: Maintains conversation history with proper role separation
+- **Interactive CLI**: Prompt-based interface for user interaction
 
-**Main Agent (index.ts)**:
+### Core Agent Flow
+1. User provides input through CLI prompt
+2. AI generates response using OpenAI GPT-5
+3. Tool parser extracts tool calls from AI response
+4. Tools execute sequentially with results fed back to AI
+5. Process continues until no more tools are called
 
-- Command-line AI agent using OpenAI GPT-5
-- XML-based tool syntax for file operations, bash commands, web fetching
-- Tools: readfile, writefile, bash, get_tweet, grep, glob, ls, webfetch
-- Recursive conversation loop with tool execution
+### Available Tools
+- `readfile`: Read any file in the current directory
+- `writefile`: Write content to files (requires reading first)
+- `bash`: Execute bash commands (with safety restrictions)
+- `get_tweet`: Mock Twitter API integration
+- `grep`: Search patterns in files using git ls-files + grep
+- `glob`: Find files by pattern using find command
 
-**Model Configuration (models.ts)**:
+## Development Commands
 
-- Exports configured AI SDK providers for OpenAI and Anthropic
-- Centralized model access point
+### Running the Agent
+```bash
+bun run start    # Start the interactive agent
+bun run dev      # Same as start
+```
 
-### Technology Stack
+### Code Quality Checks
+```bash
+# TypeScript type checking
+bunx tsc --noEmit
 
-- **Runtime**: Bun (fast JavaScript runtime)
-- **AI SDK**: Vercel AI SDK with OpenAI and Anthropic providers
-- **Utilities**: cheerio for HTML parsing, marked/turndown for markdown conversion
+# ESLint checking
+bunx eslint .
 
-### Key Patterns
+# ESLint fixing
+bunx eslint . --fix
+```
 
-1. **Tool Execution Architecture**: Both agents parse AI responses for XML tool tags, execute corresponding functions, and feed results back to the AI in a conversation loop
+### Project Structure
+- `index.ts` - Main agent implementation with all functionality
+- `models.ts` - Model configurations (if used)
+- `legacy/` - Previous agent implementations (ignored by ESLint)
+- `eslint.config.ts` - ESLint configuration with TypeScript support
+- `tsconfig.json` - TypeScript configuration for Bun bundler mode
 
-2. **File System Tools**: Standardized file operations (read/write) with size formatting and error handling
+## Technical Details
 
-3. **Command Execution**: Safe bash command execution with output capturing and error handling
+- **Runtime**: Bun (requires Bun installation)
+- **Model**: OpenAI GPT-5 via AI SDK
+- **Type Safety**: Strict TypeScript with recommended ESLint rules
+- **Tool Parsing**: Custom regex-based XML tool extraction
+- **File Operations**: Uses Bun.file() and Bun.write() APIs
+- **Process Execution**: Uses Bun.spawnSync() for bash commands
 
-4. **Web Integration**: HTML fetching with markdown conversion for web content processing
+## Important Notes
 
-5. **Conversation Management**: Message history maintenance for context-aware AI interactions
-
-### Development Notes
-
-- Uses ES modules and modern TypeScript
-- Strict TypeScript configuration with latest features
-- No build step required - direct TypeScript execution with Bun
-- Legacy folder contains alternative implementations and experiments
+- The agent expects OPENAI_API_KEY environment variable
+- Tools use XML-like syntax: `<toolname param="value" />`
+- Agent follows one-tool-per-response pattern
+- File operations include size formatting and error handling
+- Bash commands are filtered for safety (no rm -rf, etc.)
+- Git-aware grep searches only tracked files

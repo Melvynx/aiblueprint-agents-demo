@@ -1,6 +1,5 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText, ModelMessage } from "ai";
-import TurndownService from "turndown";
 
 const systemPrompt = `You are a Coding Assistant named "MelvynCode" that SHOULD use the following tools when needed : 
 
@@ -74,27 +73,6 @@ Params :
 pattern : the filename pattern you want to search for (supports wildcards like *, ?, [])
 dir : the directory to search in (optional, defaults to current directory)
 
-### Tools "ls"
-
-This tool enable you to list directory contents up to 2 levels deep.
-
-Usage :
-<ls dir="src" />
-<ls dir="." showGitIgnore="1" />
-
-Params :
-dir : the directory path to list (defaults to current directory)
-showGitIgnore : set to "1" to show .gitignore files, otherwise they are hidden
-
-### Tools "webfetch"
-
-This tool enable you to fetch HTML content from a URL and convert it to markdown.
-
-Usage :
-<webfetch url="https://example.com" />
-
-Params :
-url : the URL to fetch and convert to markdown
 
 
 ## Workflow
@@ -288,116 +266,7 @@ function glob(pattern: string, directory: string = ".") {
   }
 }
 
-function ls(directory: string = ".", showGitIgnore: string = "0") {
-  try {
-    const showGitIgnored = showGitIgnore === "1";
-    let command;
 
-    if (showGitIgnored) {
-      command = `find "${directory}" -maxdepth 2 | sort`;
-    } else {
-      command = `cd "${directory}" && (git ls-files --cached --others --exclude-standard; find . -maxdepth 1 -type d ! -name '.' ! -name '.git' ! -name 'node_modules' | sed 's|^./||') | sort | uniq`;
-    }
-
-    const result = Bun.spawnSync({ cmd: ["bash", "-c", command] })
-      .stdout.toString()
-      .trim();
-    const items = result
-      ? result.split("\n").filter((line) => line.trim())
-      : [];
-
-    let output = "";
-    if (items.length === 0) {
-      output = `No items found in ${directory}`;
-    } else {
-      output = items.join("\n");
-    }
-
-    return {
-      aiOutput: output,
-      userOutput: `📂 Listed ${items.length} items in ${directory} (respects .gitignore)`,
-    };
-  } catch (error) {
-    const errorMsg = `Error listing directory "${directory}": ${error}`;
-    return {
-      aiOutput: errorMsg,
-      userOutput: `❌ ${errorMsg}`,
-    };
-  }
-}
-
-async function webfetch(url: string) {
-  try {
-    const turndownService = new TurndownService({
-      headingStyle: "atx",
-      codeBlockStyle: "fenced",
-      fence: "```",
-      emDelimiter: "_",
-      strongDelimiter: "**",
-      linkStyle: "inlined",
-      hr: "---",
-      bulletListMarker: "-",
-      br: "  ",
-    });
-
-    turndownService.remove([
-      "script",
-      "style",
-      "noscript",
-      "iframe",
-      "object",
-      "embed",
-      "nav",
-      "header",
-      "footer",
-      "aside",
-    ]);
-
-    turndownService.addRule("absoluteLinks", {
-      filter: "a",
-      replacement: function (content, node) {
-        const href = (node as Element).getAttribute("href");
-        if (!href) return content;
-
-        try {
-          const absoluteUrl = new URL(href, url).href;
-          return `[${content}](${absoluteUrl})`;
-        } catch {
-          return content;
-        }
-      },
-    });
-
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; WebFetch/1.0)",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const html = await response.text();
-    const markdown = turndownService.turndown(html);
-
-    const cleanMarkdown = markdown
-      .replace(/\n{3,}/g, "\n\n")
-      .replace(/[ \t]+$/gm, "")
-      .trim();
-
-    return {
-      aiOutput: cleanMarkdown,
-      userOutput: `🌐 Fetched and converted ${url} to Markdown`,
-    };
-  } catch (error) {
-    const errorMsg = `Error fetching ${url}: ${error}`;
-    return {
-      aiOutput: errorMsg,
-      userOutput: `❌ ${errorMsg}`,
-    };
-  }
-}
 
 async function executeTool(tool: ToolType) {
   if (tool.name === "readfile") {
@@ -424,13 +293,6 @@ async function executeTool(tool: ToolType) {
     return glob(tool.params.pattern, tool.params.dir);
   }
 
-  if (tool.name === "ls") {
-    return ls(tool.params.dir, tool.params.showGitIgnore);
-  }
-
-  if (tool.name === "webfetch") {
-    return await webfetch(tool.params.url);
-  }
 
   const errorMsg = `Unknown tool: ${tool.name}`;
   return {
@@ -502,25 +364,6 @@ function parseTools(text: string) {
     });
   }
 
-  const lsMatches = text.matchAll(
-    /<ls(?:\s+dir="([^"]+)")?(?:\s+showGitIgnore="([^"]+)")?\s*\/>/g
-  );
-
-  for (const match of lsMatches) {
-    tools.push({
-      name: "ls",
-      params: { dir: match[1] || ".", showGitIgnore: match[2] || "0" },
-    });
-  }
-
-  const webfetchMatches = text.matchAll(/<webfetch\s+url="([^"]+)"\s*\/>/g);
-
-  for (const match of webfetchMatches) {
-    tools.push({
-      name: "webfetch",
-      params: { url: match[1] },
-    });
-  }
 
   return tools;
 }
