@@ -1,5 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText, ModelMessage } from "ai";
+import TurndownService from "turndown";
+import tree from "tree-node-cli";
 
 const systemPrompt = `You are a Coding Assistant named "MelvynCode" that SHOULD use the following tools when needed : 
 
@@ -72,6 +74,30 @@ Usage :
 Params :
 pattern : the filename pattern you want to search for (supports wildcards like *, ?, [])
 dir : the directory to search in (optional, defaults to current directory)
+
+### Tools "webfetch"
+
+This tool enable you to fetch a webpage, convert it to markdown, and get an AI summary based on a specific prompt.
+
+Usage :
+<webfetch url="https://example.com" prompt="Summarize the main points about AI" />
+
+Params :
+url : the URL of the webpage you want to fetch and analyze
+prompt : the specific question or instruction for summarizing the content
+
+### Tools "ls"
+
+This tool enable you to list files and directories in a beautiful tree structure with configurable depth.
+
+Usage :
+<ls path="./src" depth="2" />
+<ls path="." />
+<ls />
+
+Params :
+path : the directory path to list (optional, defaults to current directory ".")
+depth : the maximum depth of recursion (optional, defaults to 3)
 
 
 
@@ -266,6 +292,107 @@ function glob(pattern: string, directory: string = ".") {
   }
 }
 
+async function webFetch(url: string, prompt: string) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const html = await response.text();
+
+    const turndownService = new TurndownService({
+      headingStyle: 'atx',
+      hr: '---',
+      bulletListMarker: '*',
+      codeBlockStyle: 'fenced',
+      linkStyle: 'inlined'
+    });
+
+    turndownService.remove(['script', 'style']);
+    const markdown = turndownService.turndown(html);
+
+    const { text: summary } = await generateText({
+      model: openai("gpt-5"),
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful assistant that summarizes web content based on specific prompts. Provide concise, relevant information."
+        },
+        {
+          role: "user",
+          content: `Here is the content of a webpage in markdown format:\n\n${markdown}\n\nPlease respond to this request: ${prompt}`
+        }
+      ],
+    });
+
+    return {
+      aiOutput: summary,
+      userOutput: `🌐 Fetched and summarized content from ${new URL(url).hostname}`,
+    };
+  } catch (error) {
+    const errorMsg = `Error fetching ${url}: ${error}`;
+    return {
+      aiOutput: errorMsg,
+      userOutput: `❌ ${errorMsg}`,
+    };
+  }
+}
+
+async function listDirectory(path: string = ".", depth: number = 3) {
+  try {
+    if (depth < 1) depth = 1;
+    if (depth > 10) depth = 10;
+
+    const excludePatterns: RegExp[] = [/\.git$/];
+
+    try {
+      const gitignorePath = `${path}/.gitignore`;
+      const gitignoreFile = Bun.file(gitignorePath);
+      const gitignoreContent = await gitignoreFile.text();
+
+      const patterns = gitignoreContent
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith('#'))
+        .map(pattern => {
+          let regexPattern = pattern
+            .replace(/\./g, '\\.')
+            .replace(/\*/g, '.*')
+            .replace(/\?/g, '.')
+            .replace(/\/$/, '');
+
+          return new RegExp(regexPattern + '(/.*)?$');
+        });
+
+      excludePatterns.push(...patterns);
+    } catch {
+      // Si pas de .gitignore, on continue avec les exclusions par défaut
+    }
+
+    const treeString = tree(path, {
+      allFiles: true,
+      maxDepth: depth,
+      dirsFirst: true,
+      sizes: false,
+      exclude: excludePatterns
+    });
+
+    const lines = treeString.split('\n').filter(line => line.trim()).length;
+
+    return {
+      aiOutput: treeString,
+      userOutput: `📁 Listed ${path} (depth: ${depth}, ${lines} items)`,
+    };
+  } catch (error) {
+    const errorMsg = `Error listing directory "${path}": ${error}`;
+    return {
+      aiOutput: errorMsg,
+      userOutput: `❌ ${errorMsg}`,
+    };
+  }
+}
+
 
 
 async function executeTool(tool: ToolType) {
@@ -291,6 +418,14 @@ async function executeTool(tool: ToolType) {
 
   if (tool.name === "glob") {
     return glob(tool.params.pattern, tool.params.dir);
+  }
+
+  if (tool.name === "webfetch") {
+    return await webFetch(tool.params.url, tool.params.prompt);
+  }
+
+  if (tool.name === "ls") {
+    return await listDirectory(tool.params.path, parseInt(tool.params.depth) || 3);
   }
 
 
@@ -361,6 +496,31 @@ function parseTools(text: string) {
     tools.push({
       name: "glob",
       params: { pattern: match[1], dir: match[2] || "." },
+    });
+  }
+
+  const webfetchMatches = text.matchAll(
+    /<webfetch url="([^"]+)"\s+prompt="((?:[^"\\]|\\.)*)"\s*\/>/g
+  );
+
+  for (const match of webfetchMatches) {
+    tools.push({
+      name: "webfetch",
+      params: { url: match[1], prompt: match[2] },
+    });
+  }
+
+  const lsMatches = text.matchAll(
+    /<ls(?:\s+path="([^"]*)")?(?:\s+depth="([^"]*)")?\s*\/>/g
+  );
+
+  for (const match of lsMatches) {
+    tools.push({
+      name: "ls",
+      params: {
+        path: match[1] || ".",
+        depth: match[2] || "3"
+      },
     });
   }
 
